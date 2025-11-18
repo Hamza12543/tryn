@@ -1,0 +1,24 @@
+# Folders to ignore
+node_modules
+deployement
+backend
+.github
+.husky
+.vscode
+
+# Files to ignore
+package-lock.json
+package.json
+prettierignore
+prettier.config.js
+README.md
+Readme.md
+.npmrc
+.prettierignore
+.prettierrc
+.eslintrc.js
+Dockerfile
+.env
+.env.example
+.gitignore
+app.log
