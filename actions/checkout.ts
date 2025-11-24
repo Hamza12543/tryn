@@ -16,7 +16,9 @@ export async function createCheckout(data: {
   }>
   customerEmail: string
   customerName: string
-  shippingAddress: {
+  customerPhone?: string
+  notes?: string
+  shippingAddress?: {
     street: string
     city: string
     state: string
@@ -24,6 +26,8 @@ export async function createCheckout(data: {
     country: string
   }
   isGuestCheckout?: boolean
+  shippingMethod?: "standard" | "fast"
+  shippingFee?: number
 }) {
   try {
     const session = await getServerSession(authOptions)
@@ -40,10 +44,6 @@ export async function createCheckout(data: {
 
     if (!data.customerEmail || !data.customerName) {
       throw new Error("Please provide your name and email address")
-    }
-
-    if (!data.shippingAddress.street || !data.shippingAddress.city || !data.shippingAddress.postalCode) {
-      throw new Error("Please provide a complete shipping address")
     }
 
     // Construct valid URLs with fallback handling
@@ -65,9 +65,17 @@ export async function createCheckout(data: {
       metadata: {
         userId: session?.user?.id || 'guest',
         isGuestOrder: isGuest ? 'true' : 'false',
-        shippingAddress: JSON.stringify(data.shippingAddress),
+        shippingMethod: data.shippingMethod || 'standard',
+        shippingFee: (data.shippingFee ?? 0).toString(),
+        customerPhone: data.customerPhone || '',
+        notes: data.notes || '',
+        shippingStreet: data.shippingAddress?.street || '',
+        shippingCity: data.shippingAddress?.city || '',
+        shippingState: data.shippingAddress?.state || '',
+        shippingPostalCode: data.shippingAddress?.postalCode || '',
+        shippingCountry: data.shippingAddress?.country || '',
       },
-      
+      shippingFee: data.shippingFee,
     })
 
     return {

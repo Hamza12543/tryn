@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
         const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
 
         // get shipping safely
-        const shipping = session.collected_information?.shipping_details;
+        const shipping = session.collected_information?.shipping_details || session.shipping_details;
 
         const orderData = {
           orderNumber: `ORD-${Date.now()}-${Math.random()
@@ -177,7 +177,9 @@ export async function POST(request: NextRequest) {
           taxAmount: session.total_details?.amount_tax
             ? session.total_details.amount_tax / 100
             : 0,
-          shippingAmount: session.total_details?.amount_shipping
+          shippingAmount: session.metadata?.shippingFee
+            ? parseFloat(session.metadata.shippingFee)
+            : session.total_details?.amount_shipping
             ? session.total_details.amount_shipping / 100
             : 0,
           discountAmount: session.total_details?.amount_discount
@@ -185,10 +187,13 @@ export async function POST(request: NextRequest) {
             : 0,
           customerEmail: session.customer_details?.email ?? "",
           customerName:
-            session.customer_details?.name ??
             session.metadata?.customerName ??
+            session.customer_details?.name ??
             "",
-          customerPhone: session.customer_details?.phone ?? "",
+          customerPhone:
+            session.customer_details?.phone ??
+            (session.metadata?.customerPhone ? String(session.metadata.customerPhone) : ""),
+          notes: session.metadata?.notes ?? "",
           paymentStatus: "COMPLETED",
           paymentMethod: "CREDIT_CARD", // 👈 matches your schema
           transactionId: session.payment_intent as string,
@@ -196,11 +201,31 @@ export async function POST(request: NextRequest) {
           stripePaymentIntentId: session.payment_intent as string,
           isWholesale: false,
           shippingAddress: {
-            street: shipping?.address?.line1 ?? "",
-            city: shipping?.address?.city ?? "",
-            state: shipping?.address?.state ?? "N/A", // 👈 fallback added
-            postalCode: shipping?.address?.postal_code ?? "",
-            country: shipping?.address?.country ?? "",
+            street:
+              shipping?.address?.line1 ??
+              session.customer_details?.address?.line1 ??
+              session.metadata?.shippingStreet ??
+              "N/A",
+            city:
+              shipping?.address?.city ??
+              session.customer_details?.address?.city ??
+              session.metadata?.shippingCity ??
+              "N/A",
+            state:
+              shipping?.address?.state ??
+              session.customer_details?.address?.state ??
+              session.metadata?.shippingState ??
+              "N/A",
+            postalCode:
+              shipping?.address?.postal_code ??
+              session.customer_details?.address?.postal_code ??
+              session.metadata?.shippingPostalCode ??
+              "N/A",
+            country:
+              shipping?.address?.country ??
+              session.customer_details?.address?.country ??
+              session.metadata?.shippingCountry ??
+              "N/A",
           },
         };
 

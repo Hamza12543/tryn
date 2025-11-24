@@ -9,6 +9,7 @@ import {Label} from "@/components/ui/label"
 import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group"
 import {useCartStore} from "@/store/cart-store"
 import Image from "next/image"
+import {toast} from "sonner"
 
 export default function ProductClientSection({
   product,
@@ -49,7 +50,12 @@ export default function ProductClientSection({
       color: selectedColor,
       size: selectedSize,
     })
-    setCartOpen(true)
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("cart:open"))
+    }
+    toast.success("Added to cart", {
+      description: `${product.name} × ${quantity}`,
+    })
   }
 
   return (

@@ -1,20 +1,4 @@
 // "use client"
-// import {useState, useEffect} from "react"
-// import {useSession} from "next-auth/react"
-// import {useRouter} from "next/navigation"
-// import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
-// import {Button} from "@/components/ui/button"
-// import {Input} from "@/components/ui/input"
-// import {Label} from "@/components/ui/label"
-// import {Textarea} from "@/components/ui/textarea"
-// import {Badge} from "@/components/ui/badge"
-// import {Separator} from "@/components/ui/separator"
-// import {ArrowLeft, ShoppingBag, Loader2, CreditCard, MapPin, User, AlertCircle} from "lucide-react"
-// import Image from "next/image"
-// import Link from "next/link"
-// import {useCartStore} from "@/store/cart-store"
-// import {createCheckout} from "@/actions/checkout"
-// import {toast} from "sonner"
 
 // export default function CheckoutPage() {
 //   const {data: session} = useSession()
@@ -412,12 +396,14 @@ import {Label} from "@/components/ui/label"
 import {Textarea} from "@/components/ui/textarea"
 import {Badge} from "@/components/ui/badge"
 import {Separator} from "@/components/ui/separator"
-import {ArrowLeft, ShoppingBag, Loader2, CreditCard, MapPin, User} from "lucide-react"
+import {ArrowLeft, ShoppingBag, Loader2, CreditCard, MapPin, User, Truck} from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import {useCartStore} from "@/store/cart-store"
 import {createCheckout} from "@/actions/checkout"
 import {toast} from "sonner"
+import PaypalButtons from "@/components/paypal-buttons"
+import {z} from "zod"
 
 export default function CheckoutPage() {
   const {data: session} = useSession()
@@ -425,48 +411,66 @@ export default function CheckoutPage() {
   const {items, getTotal} = useCartStore()
   const [isLoading, setIsLoading] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "paypal">("stripe")
   const [useSaved, setUseSaved] = useState<"saved" | "new">("saved")
   const [couponCode, setCouponCode] = useState("")
   const [discount, setDiscount] = useState(0)
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null)
   const [isApplying, setIsApplying] = useState(false)
+  const [shippingMethod, setShippingMethod] = useState<"standard" | "fast">("standard")
+  const FAST_SHIPPING_FEE = 4.99
+
+  const customerSchema = z.object({
+    name: z.string().min(1, "Full name is required"),
+    email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+    phone: z.string().min(1, "Phone number is required"),
+    notes: z.string().max(1000).optional().or(z.literal("")),
+  })
+
+  const addressSchema = z.object({
+    street: z.string().min(1, "Street address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().optional().or(z.literal("")),
+    postalCode: z.string().min(1, "Postal code is required"),
+    country: z.string().min(2, "Country is required"),
+  })
 
   const [customerInfo, setCustomerInfo] = useState({
-  name: session?.user?.name || "",
-  email: session?.user?.email || "",
-  phone: (session?.user as any)?.phone || "", // Temporary fix with type assertion
-  notes: "",
-})
+    name: session?.user?.name || "",
+    email: session?.user?.email || "",
+    phone: (session?.user as any)?.phone || "", // Temporary fix with type assertion
+    notes: "",
+  })
 
-const [shippingAddress, setShippingAddress] = useState({
-  street: (session?.user as any)?.address?.addressLine1 || "",
-  city: (session?.user as any)?.address?.city || "",
-  state: (session?.user as any)?.address?.county || "",
-  postalCode: (session?.user as any)?.address?.postcode || "",
-  country: (session?.user as any)?.address?.country || "GB",
-})
+  const [shippingAddress, setShippingAddress] = useState({
+    street: (session?.user as any)?.address?.addressLine1 || "",
+    city: (session?.user as any)?.address?.city || "",
+    state: (session?.user as any)?.address?.county || "",
+    postalCode: (session?.user as any)?.address?.postcode || "",
+    country: (session?.user as any)?.address?.country || "GB",
+  })
 
-// Handle switching between saved / new address
-useEffect(() => {
-  if (useSaved === "saved" && (session?.user as any)?.address) {
-    setShippingAddress({
-      street: (session?.user as any)?.address?.addressLine1 || "",
-      city: (session?.user as any)?.address?.city || "",
-      state: (session?.user as any)?.address?.county || "",
-      postalCode: (session?.user as any)?.address?.postcode || "",
-      country: (session?.user as any)?.address?.country || "GB",
-    })
-  }
-  if (useSaved === "new") {
-    setShippingAddress({
-      street: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "GB",
-    })
-  }
-}, [useSaved, session])
+  // Handle switching between saved / new address
+  useEffect(() => {
+    if (useSaved === "saved" && (session?.user as any)?.address) {
+      setShippingAddress({
+        street: (session?.user as any)?.address?.addressLine1 || "",
+        city: (session?.user as any)?.address?.city || "",
+        state: (session?.user as any)?.address?.county || "",
+        postalCode: (session?.user as any)?.address?.postcode || "",
+        country: (session?.user as any)?.address?.country || "GB",
+      })
+    }
+    if (useSaved === "new") {
+      setShippingAddress({
+        street: "",
+        city: "",
+        state: "",
+        postalCode: "",
+        country: "GB",
+      })
+    }
+  }, [useSaved, session])
 
   useEffect(() => {
     // Only redirect if cart is empty
@@ -477,24 +481,21 @@ useEffect(() => {
   }, [items, router])
 
   const validateForm = () => {
-    const errors: Record<string, string> = {}
+    const customerResult = customerSchema.safeParse(customerInfo)
+    const addressResult = addressSchema.safeParse(shippingAddress)
 
-    if (!customerInfo.name.trim()) {
-      errors.name = "Full name is required"
+    const errors: Record<string, string> = {}
+    if (!customerResult.success) {
+      for (const issue of customerResult.error.issues) {
+        const key = issue.path[0] as string
+        errors[key] = issue.message
+      }
     }
-    if (!customerInfo.email.trim()) {
-      errors.email = "Email is required"
-    } else if (!/\S+@\S+\.\S+/.test(customerInfo.email)) {
-      errors.email = "Please enter a valid email address"
-    }
-    if (!shippingAddress.street.trim()) {
-      errors.street = "Street address is required"
-    }
-    if (!shippingAddress.city.trim()) {
-      errors.city = "City is required"
-    }
-    if (!shippingAddress.postalCode.trim()) {
-      errors.postalCode = "Postal code is required"
+    if (!addressResult.success) {
+      for (const issue of addressResult.error.issues) {
+        const key = issue.path[0] as string
+        errors[key] = issue.message
+      }
     }
 
     setValidationErrors(errors)
@@ -503,7 +504,7 @@ useEffect(() => {
 
   const handleCheckout = async () => {
     if (!validateForm()) {
-      toast.error("Please fix the errors in the form")
+      toast.error("Please fill the form fields")
       return
     }
 
@@ -514,7 +515,7 @@ useEffect(() => {
           id: item.id,
           name: item.name,
           price: appliedCoupon
-            ? Number((item.price - (item.price * discount) / getTotal()).toFixed(2)) // ✅ discounted
+            ? Number((item.price - (item.price * discount) / getTotal()).toFixed(2)) // discounted
             : item.price,
           originalPrice: item.price,
           quantity: item.quantity,
@@ -522,8 +523,12 @@ useEffect(() => {
         })),
         customerEmail: customerInfo.email,
         customerName: customerInfo.name,
+        customerPhone: customerInfo.phone,
+        notes: customerInfo.notes,
         shippingAddress,
         isGuestCheckout: !session?.user,
+        shippingMethod,
+        shippingFee: shippingMethod === "fast" ? FAST_SHIPPING_FEE : 0,
       })
 
       if (result.url) {
@@ -615,7 +620,11 @@ useEffect(() => {
                       value={customerInfo.name}
                       onChange={(e) => setCustomerInfo((prev) => ({...prev, name: e.target.value}))}
                       placeholder="Enter your full name"
+                      className={validationErrors.name ? "border-red-500" : undefined}
                     />
+                    {validationErrors.name && (
+                      <p className="text-red-500 text-sm mt-1">{validationErrors.name}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="email" className="mb-1">
@@ -627,19 +636,27 @@ useEffect(() => {
                       value={customerInfo.email}
                       onChange={(e) => setCustomerInfo((prev) => ({...prev, email: e.target.value}))}
                       placeholder="Enter your email"
+                      className={validationErrors.email ? "border-red-500" : undefined}
                     />
+                    {validationErrors.email && (
+                      <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>
+                    )}
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="phone" className="mb-1">
-                    Phone Number
+                    Phone Number *
                   </Label>
                   <Input
                     id="phone"
                     value={customerInfo.phone}
                     onChange={(e) => setCustomerInfo((prev) => ({...prev, phone: e.target.value}))}
                     placeholder="Enter your phone number"
+                    className={validationErrors.phone ? "border-red-500" : undefined}
                   />
+                  {validationErrors.phone && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.phone}</p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="notes" className="mb-1">
@@ -705,7 +722,11 @@ useEffect(() => {
                     value={shippingAddress.street}
                     onChange={(e) => setShippingAddress((prev) => ({...prev, street: e.target.value}))}
                     placeholder="Enter your street address"
+                    className={validationErrors.street ? "border-red-500" : undefined}
                   />
+                  {validationErrors.street && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.street}</p>
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -717,7 +738,11 @@ useEffect(() => {
                       value={shippingAddress.city}
                       onChange={(e) => setShippingAddress((prev) => ({...prev, city: e.target.value}))}
                       placeholder="City"
+                      className={validationErrors.city ? "border-red-500" : undefined}
                     />
+                    {validationErrors.city && (
+                      <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="state" className="mb-1">
@@ -739,7 +764,11 @@ useEffect(() => {
                       value={shippingAddress.postalCode}
                       onChange={(e) => setShippingAddress((prev) => ({...prev, postalCode: e.target.value}))}
                       placeholder="Postal Code"
+                      className={validationErrors.postalCode ? "border-red-500" : undefined}
                     />
+                    {validationErrors.postalCode && (
+                      <p className="text-red-500 text-sm mt-1">{validationErrors.postalCode}</p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -837,7 +866,46 @@ useEffect(() => {
                 {/* Totals */}
                 <div className="flex justify-between font-semibold">
                   <span>Total</span>
-                  <span>£{(getTotal() - discount).toFixed(2)}</span>
+                  <span>
+                    £{(
+                      getTotal() -
+                      discount +
+                      (shippingMethod === "fast" ? FAST_SHIPPING_FEE : 0)
+                    ).toFixed(2)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Shipping Method
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="shippingMethod"
+                      value="standard"
+                      checked={shippingMethod === "standard"}
+                      onChange={() => setShippingMethod("standard")}
+                    />
+                    <span className="text-sm">Standard (3–5 days) — Free</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="shippingMethod"
+                      value="fast"
+                      checked={shippingMethod === "fast"}
+                      onChange={() => setShippingMethod("fast")}
+                    />
+                    <span className="text-sm">Fast (1–2 days) — £{FAST_SHIPPING_FEE.toFixed(2)}</span>
+                  </label>
                 </div>
               </CardContent>
             </Card>
@@ -850,33 +918,101 @@ useEffect(() => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    You&apos;ll be redirected to Stripe to complete your payment securely.
-                  </p>
+                <div className="flex flex-col gap-3 mb-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="stripe"
+                      checked={paymentMethod === "stripe"}
+                      onChange={() => setPaymentMethod("stripe")}
+                    />
+                    <span className="inline-flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-gray-700" />
+                      <span className="text-sm">Card</span>
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="paypal"
+                      checked={paymentMethod === "paypal"}
+                      onChange={() => setPaymentMethod("paypal")}
+                    />
+                    <span className="inline-flex items-center gap-2">
+                      <img
+                        src="https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg"
+                        alt="PayPal"
+                        width={24}
+                        height={24}
+                        style={{height: 24, width: 24}}
+                      />
+                      <span className="text-sm">PayPal</span>
+                    </span>
+                  </label>
                 </div>
+                {paymentMethod === "stripe" ? (
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      You&apos;ll be redirected to Stripe to complete your payment securely.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 rounded-lg">
+                    <p className="text-sm text-yellow-900">Use the PayPal button below to complete your payment.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            <Button
-              variant="default"
-              size="lg"
-              className="w-full font-semibold py-4 text-lg rounded-lg cursor-pointer"
-              onClick={handleCheckout}
-              disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <CreditCard className="h-5 w-5 mr-2" />}
-              {/* {isLoading ? "Processing..." : `Pay £${ (getTotal() - discount).toFixed(2) }`} */}
-              {isLoading ? (
-                "Processing..."
-              ) : appliedCoupon ? (
-                <>
-                  Pay <span className="line-through text-gray-400 mr-2">£{getTotal().toFixed(2)}</span>
-                  <span className="text-white">£{(getTotal() - discount).toFixed(2)}</span>
-                </>
-              ) : (
-                `Pay £${getTotal().toFixed(2)}`
-              )}
-            </Button>
+            {paymentMethod === "stripe" && (
+              <Button
+                variant="default"
+                size="lg"
+                className="w-full font-semibold py-4 text-lg rounded-lg cursor-pointer"
+                onClick={handleCheckout}
+                disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <CreditCard className="h-5 w-5 mr-2" />}
+                {isLoading ? (
+                  "Processing..."
+                ) : appliedCoupon ? (
+                  <>
+                    Pay <span className="line-through text-gray-400 mr-2">£{getTotal().toFixed(2)}</span>
+                    <span className="text-white">£{(
+                      getTotal() -
+                      discount +
+                      (shippingMethod === "fast" ? FAST_SHIPPING_FEE : 0)
+                    ).toFixed(2)}</span>
+                  </>
+                ) : (
+                  `Pay £${(
+                    getTotal() + (shippingMethod === "fast" ? FAST_SHIPPING_FEE : 0)
+                  ).toFixed(2)}`
+                )}
+              </Button>
+            )}
+
+            {paymentMethod === "paypal" && (
+              <PaypalButtons
+                items={items.map((item) => ({
+                  id: item.id,
+                  name: item.name,
+                  price:
+                    appliedCoupon
+                      ? Number(((item.price * (getTotal() - discount)) / getTotal()).toFixed(2))
+                      : item.price,
+                  quantity: item.quantity,
+                }))}
+                customerEmail={customerInfo.email}
+                customerName={customerInfo.name}
+                shippingFee={shippingMethod === "fast" ? FAST_SHIPPING_FEE : 0}
+                shippingMethod={shippingMethod}
+                shippingAddress={shippingAddress}
+                notes={customerInfo.notes}
+                customerPhone={customerInfo.phone}
+              />
+            )}
           </div>
         </div>
       </div>

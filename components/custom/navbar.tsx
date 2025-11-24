@@ -5,9 +5,10 @@ import Link from "next/link"
 import {useState} from "react"
 import clsx from "clsx"
 import {useSession, signOut} from "next-auth/react"
+import {usePathname} from "next/navigation"
 
 import {Button} from "@/components/ui/button"
-import {Sheet, SheetContent, SheetTrigger} from "@/components/ui/sheet"
+import {Sheet, SheetContent, SheetTrigger, SheetTitle} from "@/components/ui/sheet"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ export default function Navbar() {
   const {data: session, status} = useSession()
   const user = session?.user
   const isAuthenticated = status === "authenticated"
+  const pathname = usePathname()
 
   return (
     <header className="w-full bg-white">
@@ -51,7 +53,9 @@ export default function Navbar() {
               href={item.href}
               className={clsx(
                 "px-4 py-2 text-sm font-medium transition-colors",
-                item.active ? "bg-primary text-white" : "text-[#252F34] hover:text-white hover:bg-primary"
+                (item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href))
+                  ? "bg-primary text-white"
+                  : "text-[#252F34] hover:text-white hover:bg-primary"
               )}
             >
               {item.name}
@@ -149,7 +153,8 @@ export default function Navbar() {
                 <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-[300px] sm:w-[400px] border-l-0" title="Navigation Menu">
+            <SheetContent side="right" className="w-[300px] sm:w-[400px] border-l-0">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="flex flex-col space-y-4 mt-6">
                 {/* Mobile Navigation Links */}
                 <nav className="flex flex-col space-y-2">
@@ -160,7 +165,9 @@ export default function Navbar() {
                       onClick={() => setIsOpen(false)}
                       className={clsx(
                         "px-4 py-3 text-base font-medium transition-colors",
-                        item.active ? "bg-primary text-white" : "text-[#252F34] hover:text-white hover:bg-primary"
+                        (item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href))
+                          ? "bg-primary text-white"
+                          : "text-[#252F34] hover:text-white hover:bg-primary"
                       )}
                     >
                       {item.name}

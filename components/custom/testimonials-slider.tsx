@@ -53,9 +53,20 @@ const testimonials = [
 export default function TestimonialsSlider() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+  const [itemsPerSlide, setItemsPerSlide] = useState(1)
 
-  // Calculate total slides (showing 2 testimonials per slide)
-  const totalSlides = Math.ceil(testimonials.length / 2)
+  // Responsive items per slide: 1 on mobile, 2 on md+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(min-width: 768px)")
+    const update = () => setItemsPerSlide(mq.matches ? 2 : 1)
+    update()
+    mq.addEventListener?.("change", update)
+    return () => mq.removeEventListener?.("change", update)
+  }, [])
+
+  // Calculate total slides based on itemsPerSlide
+  const totalSlides = Math.ceil(testimonials.length / itemsPerSlide)
 
   // Auto-play functionality
   useEffect(() => {
@@ -97,7 +108,7 @@ export default function TestimonialsSlider() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
+    <div className="max-w-7xl mx-auto px-4 py-12 overflow-x-hidden">
       <div className="grid lg:grid-cols-4 gap-8 items-start">
         {/* Header Section */}
         <div className="lg:col-span-1 space-y-4">
@@ -119,16 +130,18 @@ export default function TestimonialsSlider() {
         </div>
 
         {/* Testimonials Section */}
-        <div className="lg:col-span-3">
-          <div className="overflow-hidden">
+        <div className="lg:col-span-3 min-w-0">
+          <div className="overflow-hidden min-w-0">
             <div
-              className="flex transition-transform duration-500 ease-in-out"
+              className="flex transition-transform duration-500 ease-in-out min-w-0"
               style={{transform: `translateX(-${currentIndex * 100}%)`}}
             >
               {Array.from({length: totalSlides}, (_, slideIndex) => (
-                <div key={slideIndex} className="w-full flex-shrink-0">
+                <div key={slideIndex} className="w-full shrink-0 min-w-0">
                   <div className="grid md:grid-cols-2 gap-6">
-                    {testimonials.slice(slideIndex * 2, slideIndex * 2 + 2).map((testimonial) => (
+                    {testimonials
+                      .slice(slideIndex * itemsPerSlide, slideIndex * itemsPerSlide + itemsPerSlide)
+                      .map((testimonial) => (
                       <div key={testimonial.id} className="bg-white rounded-lg shadow-sm border p-6">
                         <div className="flex flex-col h-full">
                           {/* Image */}

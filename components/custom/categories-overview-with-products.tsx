@@ -90,29 +90,32 @@ export default function CategoriesOverviewWithProducts({products}: {products: Pr
       <div className="container mx-auto px-4">
         <h2 className="text-4xl md:text-5xl font-light text-center text-gray-900 mb-16">The Full Collection</h2>
 
-        <div className="flex justify-center items-center gap-16 md:gap-20 lg:gap-24 mb-16">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => handleCategoryClick(category.filterValue)}
-              className={`flex flex-col items-center group cursor-pointer transition-transform hover:scale-105 w-24 ${
-                currentCategory === category.filterValue ? "ring-2 ring-blue-500 ring-offset-2" : ""
-              }`}
-            >
-              <div
-                className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-colors ${
-                  currentCategory === category.filterValue
-                    ? "bg-blue-100 group-hover:bg-blue-200"
-                    : "bg-gray-100 group-hover:bg-gray-200"
+        {/* Scrollable on mobile, centered on larger screens */}
+        <div className="overflow-x-auto no-scrollbar scroll-smooth md:overflow-visible -mx-4 md:mx-0 mb-16">
+          <div className="flex items-center md:justify-center gap-6 md:gap-20 lg:gap-24 px-4 snap-x snap-mandatory">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleCategoryClick(category.filterValue)}
+                className={`flex flex-col items-center group cursor-pointer transition-transform hover:scale-105 w-24 shrink-0 snap-start ${
+                  currentCategory === category.filterValue ? "ring-2 ring-blue-500 ring-offset-2" : ""
                 }`}
               >
-                <Image src={category.icon} alt={category.name} width={40} height={40} className="text-gray-700" />
-              </div>
-              <span className="text-xs md:text-sm text-gray-800 text-center font-medium w-24 leading-tight">
-                {category.name}
-              </span>
-            </button>
-          ))}
+                <div
+                  className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 transition-colors ${
+                    currentCategory === category.filterValue
+                      ? "bg-blue-100 group-hover:bg-blue-200"
+                      : "bg-gray-100 group-hover:bg-gray-200"
+                  }`}
+                >
+                  <Image src={category.icon} alt={category.name} width={40} height={40} className="text-gray-700" />
+                </div>
+                <span className="text-xs md:text-sm text-gray-800 text-center font-medium w-24 leading-tight">
+                  {category.name}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Products Grid */}

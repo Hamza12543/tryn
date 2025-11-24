@@ -29,7 +29,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const headersList = await headers()
+  const headersList = headers()
   const isAdminRoute = headersList.get("x-is-admin") === "true"
 
   return (
@@ -38,9 +38,7 @@ export default async function RootLayout({
         <Providers>
           {!isAdminRoute && (
             <>
-              <Suspense fallback={<div className="h-12 bg-[#252F34]" />}>
-                <AnnouncementBanner />
-              </Suspense>
+              <AnnouncementBanner />
               <Suspense fallback={<div className="h-16 border-b bg-white" />}>
                 <Navbar />
               </Suspense>

@@ -1,11 +1,12 @@
 "use client"
-import {useEffect, useState} from "react"
+import {useEffect, useRef, useState} from "react"
 import {useSearchParams} from "next/navigation"
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import {Button} from "@/components/ui/button"
 import {Badge} from "@/components/ui/badge"
 import {CheckCircle, Package, Truck, Home} from "lucide-react"
 import Link from "next/link"
+import {useCartStore} from "@/store/cart-store"
 
 interface OrderData {
   orderNumber: string
@@ -25,8 +26,11 @@ interface OrderData {
 export default function CheckoutSuccessPage() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id")
+  const orderId = searchParams.get("orderId")
   const [order, setOrder] = useState<OrderData | null>(null)
   const [loading, setLoading] = useState(true)
+  const clearCart = useCartStore((s) => s.clearCart)
+  const clearedRef = useRef(false)
 
   // useEffect(() => {
   //   console.log("Session ID:", order)
@@ -57,26 +61,40 @@ export default function CheckoutSuccessPage() {
 
 
   useEffect(() => {
-  const fetchOrder = async () => {
-    if (!sessionId) return;
-
-    try {
-      const res = await fetch(`/api/orders/by-session/${sessionId}`);
-      if (!res.ok) {
-        throw new Error("Failed to fetch order");
+    const fetchOrder = async () => {
+      try {
+        if (sessionId) {
+          const res = await fetch(`/api/orders/by-session/${sessionId}`)
+          if (!res.ok) throw new Error("Failed to fetch order")
+          const data = await res.json()
+          setOrder(data.order)
+        } else if (orderId) {
+          const res = await fetch(`/api/orders/${orderId}`)
+          if (!res.ok) throw new Error("Failed to fetch order")
+          const data = await res.json()
+          setOrder(data.order)
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
       }
-      const data = await res.json();
-      console.log("Fetched order data:", data);
-      setOrder(data.order);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
-  };
 
-  fetchOrder();
-}, [sessionId]);
+    fetchOrder()
+  }, [sessionId, orderId])
+
+  // Clear the cart once when we have a confirmed order
+  useEffect(() => {
+    if (order && !clearedRef.current) {
+      try {
+        clearCart()
+      } catch (e) {
+        console.error("Failed to clear cart after success", e)
+      }
+      clearedRef.current = true
+    }
+  }, [order, clearCart])
 
   if (loading) {
     return (

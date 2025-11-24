@@ -15,6 +15,19 @@ export default function CartButton() {
     setMounted(true)
   }, [])
 
+  // Open cart sheet when other components dispatch a 'cart:open' event
+  useEffect(() => {
+    const handler = () => setOpen(true)
+    if (typeof window !== "undefined") {
+      window.addEventListener("cart:open", handler as EventListener)
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("cart:open", handler as EventListener)
+      }
+    }
+  }, [])
+
   return (
     <>
       <Button

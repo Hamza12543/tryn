@@ -5,8 +5,9 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY is not set in environment variables")
 }
 
-// Use account default API version to avoid invalid version errors
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-07-30.basil",
+})
 
 export const createCheckoutSession = async ({
   items,
@@ -15,7 +16,6 @@ export const createCheckoutSession = async ({
   successUrl,
   cancelUrl,
   metadata = {},
-  shippingFee,
 }: {
   items: Array<{
     id: string
@@ -29,7 +29,6 @@ export const createCheckoutSession = async ({
   successUrl: string
   cancelUrl: string
   metadata?: Record<string, string>
-  shippingFee?: number
 }) => {
   // Validate URLs before creating session
   if (!isValidUrl(successUrl)) {
@@ -53,20 +52,6 @@ export const createCheckoutSession = async ({
     quantity: item.quantity,
   }))
 
-  // Add a separate line item for Fast Shipping if applicable
-  if (typeof shippingFee === "number" && shippingFee > 0) {
-    validatedItems.push({
-      price_data: {
-        currency: "gbp",
-        product_data: {
-          name: "Fast Shipping",
-        },
-        unit_amount: Math.round(shippingFee * 100),
-      },
-      quantity: 1,
-    })
-  }
-
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     payment_method_options: {
@@ -83,6 +68,31 @@ export const createCheckoutSession = async ({
       customerName,
       ...metadata,
     },
+     shipping_address_collection: {
+      allowed_countries: ["GB"],
+    },
+    shipping_options: [
+      {
+        shipping_rate_data: {
+          type: "fixed_amount",
+          fixed_amount: {
+            amount: 0,
+            currency: "gbp",
+          },
+          display_name: "Free shipping",
+          delivery_estimate: {
+            minimum: {
+              unit: "business_day",
+              value: 3,
+            },
+            maximum: {
+              unit: "business_day",
+              value: 7,
+            },
+          },
+        },
+      },
+    ],
   })
 
   return session
