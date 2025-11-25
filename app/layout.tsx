@@ -29,7 +29,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const headersList = headers()
+  const headersList = await headers()
   const isAdminRoute = headersList.get("x-is-admin") === "true"
 
   return (
@@ -56,3 +56,4 @@ export default async function RootLayout({
     </html>
   )
 }
+

@@ -19,10 +19,10 @@ interface OrderItemDocument {
 
 export async function GET(
   request: Request,
-  { params }: { params: { orderId: string } }
+  context: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params
+    const { orderId } = await context.params
     await connectDB()
 
     const order = (await Order.findById(orderId).lean()) as OrderDocument | null
@@ -48,3 +48,4 @@ export async function GET(
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
