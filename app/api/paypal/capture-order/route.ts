@@ -3,6 +3,9 @@ import { capturePayPalOrder } from "@/lib/paypal"
 import { connectDB } from "@/lib/mongodb"
 import Order from "@/models/Order"
 import OrderItem from "@/models/OrderItem"
+import { sendOrderCreatedEmails } from "@/lib/emailService"
+
+export const runtime = "nodejs"
 
 export async function POST(request: Request) {
   try {
@@ -91,6 +94,10 @@ export async function POST(request: Request) {
       }))
       if (orderItems.length) await OrderItem.insertMany(orderItems)
     }
+
+    try {
+      await sendOrderCreatedEmails(orderDoc as any)
+    } catch {}
 
     return NextResponse.json({
       success: true,

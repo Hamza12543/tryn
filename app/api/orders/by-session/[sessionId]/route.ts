@@ -99,7 +99,7 @@ import { connectDB } from "@/lib/mongodb";
 import Order from "@/models/Order";
 import OrderItem from "@/models/OrderItem";
 import { Types } from "mongoose";
-
+export const runtime = "nodejs";
 // Define interfaces for better type safety
 interface OrderDocument {
   _id: Types.ObjectId;
@@ -117,12 +117,12 @@ interface OrderItemDocument {
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ sessionId: string }> } // params is now a Promise
+  { params }: { params: { sessionId: string } } // params is now a Promise
 ) {
   try {
     // Await the params to get the actual values
-    const { sessionId } = await params;
-    
+    const { sessionId } = params;
+    console.log("API HIT:", params)
     await connectDB();
     console.log("Looking for order with sessionId:", sessionId);
 
